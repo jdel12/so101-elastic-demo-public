@@ -1,0 +1,86 @@
+{
+  "index_patterns": [
+    "robot-episodes*"
+  ],
+  "template": {
+    "settings": {
+      "index": {
+        "number_of_shards": "1",
+        "number_of_replicas": "0"
+      }
+    },
+    "mappings": {
+      "properties": {
+        "episode_id": {
+          "type": "integer"
+        },
+        "task": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            }
+          }
+        },
+        "camera_health": {
+          "properties": {
+            "cam1": {
+              "properties": {
+                "blur_score": {
+                  "type": "float"
+                },
+                "actual_fps": {
+                  "type": "float"
+                },
+                "mean_brightness": {
+                  "type": "float"
+                }
+              }
+            },
+            "cam0": {
+              "properties": {
+                "blur_score": {
+                  "type": "float"
+                },
+                "actual_fps": {
+                  "type": "float"
+                },
+                "mean_brightness": {
+                  "type": "float"
+                }
+              }
+            }
+          }
+        },
+        "quality_flags": {
+          "type": "keyword"
+        },
+        "frame_count": {
+          "type": "integer"
+        },
+        "joint_stats": {
+          "properties": {
+            "max_jerk": {
+              "type": "float"
+            },
+            "mean_velocity": {
+              "type": "float"
+            },
+            "smoothness_score": {
+              "type": "float"
+            }
+          }
+        },
+        "dataset": {
+          "type": "keyword"
+        },
+        "duration_s": {
+          "type": "float"
+        },
+        "timestamp": {
+          "type": "date"
+        }
+      }
+    }
+  }
+}

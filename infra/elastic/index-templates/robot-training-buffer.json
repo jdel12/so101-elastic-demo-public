@@ -1,0 +1,86 @@
+{
+  "index_patterns": [
+    "robot-training-buffer*"
+  ],
+  "template": {
+    "settings": {
+      "index": {
+        "number_of_shards": "1",
+        "number_of_replicas": "0"
+      }
+    },
+    "mappings": {
+      "properties": {
+        "buffer_id": {
+          "type": "keyword"
+        },
+        "scene_embedding": {
+          "dims": 768,
+          "similarity": "cosine",
+          "index": true,
+          "type": "dense_vector"
+        },
+        "model_version": {
+          "type": "keyword"
+        },
+        "task": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            }
+          }
+        },
+        "source_run_id": {
+          "type": "keyword"
+        },
+        "curation": {
+          "properties": {
+            "hard_example": {
+              "type": "boolean"
+            },
+            "confidence_at_action": {
+              "type": "float"
+            },
+            "smolvla_approved": {
+              "type": "boolean"
+            },
+            "outcome_success": {
+              "type": "boolean"
+            },
+            "novelty_score": {
+              "type": "float"
+            },
+            "smolvla_reasoning": {
+              "type": "text"
+            },
+            "rejection_reason": {
+              "type": "keyword"
+            },
+            "difficulty_score": {
+              "type": "float"
+            },
+            "nearest_neighbor_distance": {
+              "type": "float"
+            }
+          }
+        },
+        "source_cycle_id": {
+          "type": "keyword"
+        },
+        "condition_tags": {
+          "type": "keyword"
+        },
+        "admitted_at": {
+          "type": "date"
+        },
+        "prompt_version": {
+          "type": "keyword"
+        },
+        "timestamp": {
+          "type": "date"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "index_patterns": [
+    "robot-scene-embeddings*"
+  ],
+  "template": {
+    "settings": {
+      "index": {
+        "number_of_shards": "1",
+        "number_of_replicas": "0"
+      }
+    },
+    "mappings": {
+      "properties": {
+        "embedding_id": {
+          "type": "keyword"
+        },
+        "scene_embedding": {
+          "dims": 768,
+          "similarity": "cosine",
+          "index": true,
+          "type": "dense_vector"
+        },
+        "metadata": {
+          "properties": {
+            "model_version": {
+              "type": "keyword"
+            },
+            "success": {
+              "type": "boolean"
+            },
+            "confidence": {
+              "type": "float"
+            },
+            "condition_tags": {
+              "type": "keyword"
+            },
+            "distance_from_baseline": {
+              "type": "float"
+            }
+          }
+        },
+        "is_baseline": {
+          "type": "boolean"
+        },
+        "source_cycle_id": {
+          "type": "keyword"
+        },
+        "model_used": {
+          "type": "keyword"
+        },
+        "action_embedding": {
+          "dims": 128,
+          "similarity": "cosine",
+          "index": true,
+          "type": "dense_vector"
+        },
+        "embedding_type": {
+          "type": "keyword"
+        },
+        "timestamp": {
+          "type": "date"
+        }
+      }
+    }
+  }
+}

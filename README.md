@@ -8,9 +8,8 @@ through Elasticsearch and Kibana.
 **Companion to the Search Labs article series** — the articles cover
 what we learned; this repository has everything you need to build it yourself.
 
-> [Part 1: An LLM controls a physical robot through MCP tools](#) (coming soon)
-> [Part 2: SRE for robots — operating AI systems with Elastic](#) (coming soon)
-> [Part 3: Kernel-level GPU observability for AI inference](#) (coming soon)
+> [Part 1: Operating AI robots with Elastic](#) (coming soon)
+> [Part 2: What nvidia-smi won't tell you](#) (coming soon)
 
 ## What this does
 
@@ -27,57 +26,63 @@ perception, or hardware.
 ## Architecture
 
 ```
-Cortex (Ubuntu 24.04, k3s control, 2x RTX 4060 Ti 16GB)
+GPU Server (Ubuntu, k3s control, 1-2× NVIDIA GPUs with 16GB+ VRAM)
 ├── robot-brain pod (hostNetwork)
 │   ├── mcp-server    (FastMCP, 26 tools, host-mounted source)
-│   └── inference     (X-VLA on GPU 0, 30 FPS)
-├── camera-wrist pod  (cam0, /dev/video2, Bus 5)
-├── camera-overhead   (cam1, /dev/video0, Bus 1)
+│   └── inference     (VLA model on GPU 0, 30 FPS)
+├── camera-wrist pod  (USB camera, separate controller)
+├── camera-overhead   (USB camera, separate controller)
 ├── Ollama            (Qwen3-VL on GPU 1, auto-evaluation)
 ├── Jina CLIP v2      (GPU 1, 1024-dim embeddings)
 ├── Elasticsearch 9.4.1  (ECK 3.4.0)
 ├── Kibana 9.4.1
 └── Refinery          (Rust GPU obs daemon, CUPTI kernel tracing)
 
-        ↕ DDS (ROS2 Humble ↔ Jazzy) over gigabit LAN
+        ↕ DDS (ROS 2 Humble ↔ Jazzy) over gigabit LAN
 
-NUC (Ubuntu 22.04, k3s agent)
+Edge Node (Ubuntu, k3s agent)
 ├── motor-node pod    (SO-101 follower arm, Feetech servos)
 └── SO-101 arms       (leader + follower)
 ```
 
-Both cameras are on cortex (separate USB controllers). Camera containers use
-ROS 2 Humble; inference uses Jazzy. FastDDS SHM is disabled to force UDP
-transport between container versions.
+Both cameras are on the GPU server on separate USB controllers. Camera
+containers use ROS 2 Humble; inference uses Jazzy. FastDDS SHM is disabled
+to force UDP transport between container versions.
 
 ## Repository contents
 
 ```
 docs/
-├── FINDINGS.md          # Chronological project narrative (start here)
-├── architecture/        # System diagrams
-├── gotchas/             # 90+ categorized operational gotchas
-└── articles/            # Search Labs article drafts
+├── guide/               # Step-by-step build guide (start here)
+│   ├── 01-hardware.md
+│   ├── 02-cluster-setup.md
+│   ├── 03-deployment.md
+│   ├── 04-observability.md
+│   └── 05-operations.md
+├── CONFIG.md            # Environment variable reference
+└── gotchas.md           # 35+ categorized operational gotchas
 
 src/
 ├── cortex/brain/        # MCP server (26 tools) + inference node
 ├── edge/camera/         # Camera node with USB auto-recovery
-└── edge/motor/          # Motor control bridge (NUC)
+└── edge/motor/          # Motor control bridge
 
 infra/
-├── k8s/                 # All Kubernetes manifests
-└── docker/              # Container images
+├── k8s/                 # Kubernetes manifests (parameterized)
+├── docker/              # Container images
+└── elastic/             # ES/Kibana manifests + index templates
 
 scripts/
 ├── rebuild/             # ES cluster rebuild (00-preflight through 05-verify)
-├── reset-arm.sh         # Smooth 90-step arm reset
-└── deploy-model.sh      # Safe model deployment with rollback
+├── build-images.sh      # Build and push container images
+├── reset-arm.sh         # Smooth arm reset to training position
+└── deploy.sh            # Apply k8s manifests
 ```
 
 ## Key findings
 
-These are the most interesting things we discovered. The full chronological
-narrative is in [docs/FINDINGS.md](docs/FINDINGS.md).
+These are the most interesting things we discovered building and operating
+this system.
 
 1. **The model replays a memorized trajectory.** GPU kernel profiles are
    identical between success and failure — the vision encoder runs but the
@@ -103,8 +108,8 @@ narrative is in [docs/FINDINGS.md](docs/FINDINGS.md).
 
 | Component | What we used | Minimum |
 |-----------|-------------|---------|
-| GPU server | 2× RTX 4060 Ti 16GB, 64GB RAM | 1× GPU with 16GB VRAM |
-| Edge node | Intel NUC, 16GB RAM | Any Linux box with USB |
+| GPU server | 2× RTX 4060 Ti 16GB, 64GB RAM | 1× NVIDIA GPU with 16GB VRAM |
+| Edge node | Intel NUC, 16GB RAM | Any Linux box with USB serial |
 | Robot arm | SO-101 (leader + follower) | Any LeRobot-compatible arm |
 | Cameras | 2× USB webcams (1080p) | 1 camera minimum |
 | Network | Gigabit Ethernet | Required for DDS |
@@ -126,16 +131,20 @@ narrative is in [docs/FINDINGS.md](docs/FINDINGS.md).
 
 ## Getting started
 
-Detailed setup instructions are in the article series. The short version:
+Follow the [build guide](docs/guide/01-hardware.md) for detailed instructions.
+The short version:
 
 1. Set up k3s on your GPU server and edge node
 2. Deploy Elasticsearch and Kibana via ECK
-3. Apply the Kubernetes manifests from `infra/k8s/`
-4. Register MCP tools in Kibana Agent Builder
-5. Start talking to your robot
+3. Copy `scripts/rebuild/config.env.example` to `config.env` and fill in your values
+4. Run the rebuild scripts (`00-preflight.sh` through `05-verify.sh`)
+5. Build and push container images with `scripts/build-images.sh`
+6. Apply the Kubernetes manifests with `scripts/deploy.sh`
+7. Register MCP tools in Kibana Agent Builder
+8. Start talking to your robot
 
-For the full build story including 90+ gotchas we discovered along the way,
-see [docs/FINDINGS.md](docs/FINDINGS.md).
+See [docs/CONFIG.md](docs/CONFIG.md) for the full environment variable reference
+and [docs/gotchas.md](docs/gotchas.md) for operational gotchas.
 
 ## Elasticsearch indices
 
@@ -153,7 +162,3 @@ see [docs/FINDINGS.md](docs/FINDINGS.md).
 ## License
 
 Apache 2.0
-
-## Author
-
-Joe de la Rosa — Elastic

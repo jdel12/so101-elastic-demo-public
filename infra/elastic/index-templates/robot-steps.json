@@ -1,0 +1,38 @@
+{
+  "index_patterns": [
+    "robot-steps*"
+  ],
+  "template": {
+    "settings": {
+      "index": {
+        "number_of_shards": "1",
+        "number_of_replicas": "0"
+      }
+    },
+    "mappings": {
+      "properties": {
+        "cycle_id": {
+          "type": "keyword"
+        },
+        "model_version": {
+          "type": "keyword"
+        },
+        "policy_type": {
+          "type": "keyword"
+        },
+        "timestamp": {
+          "type": "date"
+        },
+        "step": {
+          "type": "integer"
+        },
+        "step_time": {
+          "type": "float"
+        },
+        "joints": {
+          "type": "float"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,92 @@
+---
+apiVersion: kibana.k8s.elastic.co/v1
+kind: Kibana
+metadata:
+  name: kibana
+spec:
+  monitoring:
+    metrics:
+      elasticsearchRefs:
+      - name: elasticsearch
+    logs:
+      elasticsearchRefs:
+      - name: elasticsearch
+  version: 9.4.1
+  count: 1
+  elasticsearchRef:
+    name: elasticsearch
+  config:
+    xpack.actions.responseTimeout: "120s"
+    xpack.security.authc.providers.basic.basic1.order: 0
+    xpack.fleet.agents.elasticsearch.hosts: ["https://elasticsearch-es-http.default.svc:9200"]
+    xpack.fleet.agents.fleet_server.hosts: ["https://fleet-server-agent-http.default.svc:8220"]
+    xpack.fleet.packages:
+    - name: system
+      version: latest
+    - name: elastic_agent
+      version: latest
+    - name: fleet_server
+      version: latest
+    - name: kubernetes
+      version: latest
+    - name: apm
+      version: latest
+    - name: nvidia_gpu
+      version: latest
+    xpack.fleet.agentPolicies:
+    - name: Fleet Server on ECK policy
+      id: eck-fleet-server
+      namespace: default
+      is_managed: true
+      monitoring_enabled:
+      - logs
+      - metrics
+      unenroll_timeout: 900
+      package_policies:
+      - name: fleet_server-1
+        id: fleet_server-1
+        package:
+          name: fleet_server
+    - name: Elastic Agent on ECK policy
+      id: eck-agent
+      namespace: default
+      is_managed: true
+      monitoring_enabled:
+      - logs
+      - metrics
+      unenroll_timeout: 900
+      package_policies:
+      - package:
+          name: system
+        name: system-1
+      - package:
+          name: kubernetes
+        name: kubernetes-1
+      - package:
+          name: apm
+        name: apm-1
+        inputs:
+        - type: apm
+          enabled: true
+          vars:
+          - name: host
+            value: 0.0.0.0:8200
+      - package:
+          name: nvidia_gpu
+        name: nvidia_gpu-1
+        inputs:
+        - type: prometheus/metrics
+          enabled: true
+          streams:
+          - data_stream:
+              dataset: nvidia_gpu.stats
+              type: metrics
+            enabled: true
+            vars:
+            - name: hosts
+              value:
+              # TODO: Replace with your GPU node's hostname or IP where
+              # DCGM Exporter is running (e.g., "http://my-gpu-node:9400/metrics")
+              - "http://${GPU_NODE_HOSTNAME}:9400/metrics"
+            - name: period
+              value: "10s"

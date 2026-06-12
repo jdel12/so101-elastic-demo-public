@@ -1,0 +1,86 @@
+{
+  "index_patterns": [
+    "robot-evaluations*"
+  ],
+  "template": {
+    "settings": {
+      "index": {
+        "number_of_shards": "1",
+        "number_of_replicas": "0"
+      }
+    },
+    "mappings": {
+      "properties": {
+        "checkpoint": {
+          "type": "keyword"
+        },
+        "scene_embedding": {
+          "dims": 768,
+          "similarity": "cosine",
+          "index": true,
+          "type": "dense_vector"
+        },
+        "model_version": {
+          "type": "keyword"
+        },
+        "eval_id": {
+          "type": "keyword"
+        },
+        "evaluator_score": {
+          "type": "float"
+        },
+        "confidence": {
+          "type": "float"
+        },
+        "episode": {
+          "type": "integer"
+        },
+        "model_id": {
+          "type": "keyword"
+        },
+        "prompt_version": {
+          "type": "keyword"
+        },
+        "eval_run": {
+          "type": "keyword"
+        },
+        "policy_type": {
+          "type": "keyword"
+        },
+        "condition": {
+          "properties": {
+            "camera_occluded": {
+              "type": "boolean"
+            },
+            "distractor_present": {
+              "type": "boolean"
+            },
+            "tags": {
+              "type": "keyword"
+            }
+          }
+        },
+        "task": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            }
+          }
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "failure_mode": {
+          "type": "keyword"
+        },
+        "cycle_time_s": {
+          "type": "float"
+        },
+        "timestamp": {
+          "type": "date"
+        }
+      }
+    }
+  }
+}

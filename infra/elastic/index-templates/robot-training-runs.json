@@ -1,0 +1,71 @@
+{
+  "index_patterns": [
+    "robot-training-runs*"
+  ],
+  "template": {
+    "settings": {
+      "index": {
+        "number_of_shards": "1",
+        "number_of_replicas": "0"
+      }
+    },
+    "mappings": {
+      "properties": {
+        "throughput_steps_per_min": {
+          "type": "float"
+        },
+        "gpu_temp_c": {
+          "type": "float"
+        },
+        "gpu_utilization_pct": {
+          "type": "float"
+        },
+        "dataset_type": {
+          "type": "keyword"
+        },
+        "dataset_episodes": {
+          "type": "integer"
+        },
+        "run_id": {
+          "type": "keyword"
+        },
+        "batch_size": {
+          "type": "integer"
+        },
+        "base_model": {
+          "type": "keyword"
+        },
+        "lora_rank": {
+          "type": "integer"
+        },
+        "training_method": {
+          "type": "keyword"
+        },
+        "loss": {
+          "type": "float"
+        },
+        "policy_type": {
+          "type": "keyword"
+        },
+        "gpu_vram_used_gb": {
+          "type": "float"
+        },
+        "step": {
+          "type": "integer"
+        },
+        "checkpoint_path": {
+          "type": "keyword"
+        },
+        "learning_rate": {
+          "type": "float"
+        },
+        "dataset": {
+          "type": "keyword"
+        },
+        "timestamp": {
+          "type": "date"
+        }
+      }
+    }
+  }
+}

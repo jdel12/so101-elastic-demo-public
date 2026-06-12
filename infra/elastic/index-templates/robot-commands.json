@@ -1,0 +1,70 @@
+{
+  "index_patterns": [
+    "robot-commands*"
+  ],
+  "template": {
+    "settings": {
+      "index": {
+        "number_of_shards": "1",
+        "number_of_replicas": "0"
+      }
+    },
+    "mappings": {
+      "properties": {
+        "model_version": {
+          "type": "keyword"
+        },
+        "target_object": {
+          "type": "keyword"
+        },
+        "cameras_active": {
+          "type": "integer"
+        },
+        "destination": {
+          "type": "keyword"
+        },
+        "source": {
+          "type": "keyword"
+        },
+        "condition_tags": {
+          "type": "keyword"
+        },
+        "error": {
+          "type": "text"
+        },
+        "tool": {
+          "type": "keyword"
+        },
+        "latency_ms": {
+          "type": "float"
+        },
+        "command_id": {
+          "type": "keyword"
+        },
+        "instruction": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            }
+          }
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "skill": {
+          "type": "keyword"
+        },
+        "inference_steps": {
+          "type": "integer"
+        },
+        "status": {
+          "type": "keyword"
+        },
+        "timestamp": {
+          "type": "date"
+        }
+      }
+    }
+  }
+}

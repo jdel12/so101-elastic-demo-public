@@ -1,0 +1,27 @@
+# Credentials
+scripts/rebuild/config.env
+*.env
+!config.env.example
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Model checkpoints
+models/
+outputs/
+*.safetensors
+*.bin
+*.pt
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Claude Code
+.claude/

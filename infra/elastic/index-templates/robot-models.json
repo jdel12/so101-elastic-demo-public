@@ -1,0 +1,50 @@
+{
+  "index_patterns": [
+    "robot-models*"
+  ],
+  "template": {
+    "settings": {
+      "index": {
+        "number_of_shards": "1",
+        "number_of_replicas": "0"
+      }
+    },
+    "mappings": {
+      "properties": {
+        "model_id": {
+          "type": "keyword"
+        },
+        "model_path": {
+          "type": "keyword"
+        },
+        "base_model": {
+          "type": "keyword"
+        },
+        "training_data": {
+          "type": "keyword"
+        },
+        "training_steps": {
+          "type": "integer"
+        },
+        "created_at": {
+          "type": "date"
+        },
+        "success_rate": {
+          "type": "float"
+        },
+        "mean_confidence": {
+          "type": "float"
+        },
+        "is_active": {
+          "type": "boolean"
+        },
+        "replaced_by": {
+          "type": "keyword"
+        },
+        "notes": {
+          "type": "text"
+        }
+      }
+    }
+  }
+}

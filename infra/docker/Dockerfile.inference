@@ -1,0 +1,26 @@
+FROM ros:jazzy-ros-base
+
+RUN apt-get update && apt-get install -y \
+    ros-jazzy-compressed-image-transport \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+# OpenCV (no deps to avoid numpy conflict)
+RUN pip3 install --break-system-packages --no-deps opencv-python-headless
+
+# PyTorch with CUDA
+RUN pip3 install --break-system-packages --ignore-installed zipp \
+    torch torchvision --index-url https://download.pytorch.org/whl/cu121
+
+# LeRobot with all VLA policy extras
+# smolvla for SmolVLA, pi for pi0/pi05, xvla for X-VLA
+RUN pip3 install --break-system-packages --ignore-installed zipp \
+    "lerobot[smolvla,pi,xvla]"
+
+COPY src/cortex/brain/inference_node.py /ros2_ws/inference_node.py
+
+RUN echo '#!/bin/bash\nsource /opt/ros/jazzy/setup.bash\nexec "$@"' > /entrypoint.sh \
+    && chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["python3", "/ros2_ws/inference_node.py"]

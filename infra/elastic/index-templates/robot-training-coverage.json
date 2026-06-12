@@ -1,0 +1,38 @@
+{
+  "index_patterns": [
+    "robot-training-coverage*"
+  ],
+  "template": {
+    "settings": {
+      "index": {
+        "number_of_shards": "1",
+        "number_of_replicas": "0"
+      }
+    },
+    "mappings": {
+      "properties": {
+        "episode_index": {
+          "type": "integer"
+        },
+        "umap_x": {
+          "type": "float"
+        },
+        "umap_y": {
+          "type": "float"
+        },
+        "cluster_id": {
+          "type": "integer"
+        },
+        "cluster_label": {
+          "type": "keyword"
+        },
+        "num_source_docs": {
+          "type": "integer"
+        },
+        "timestamp": {
+          "type": "date"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,369 @@
+# ============================================================
+# SO-101 Flywheel Demo — k3s Deployments
+# ============================================================
+#
+# robot-brain: MCP server + VLA inference (GPU node)
+# motor-node:  SO-101 arm driver (edge node)
+#
+# Before applying, set these environment variables or replace
+# the ${...} placeholders below:
+#
+#   GPU_NODE_NAME   — hostname of GPU server (k8s node label)
+#   MOTOR_NODE_NAME — hostname of edge/motor node
+#   REGISTRY        — container registry (e.g. myhost:5050)
+#   REPO_ROOT       — absolute path to this repo on GPU node
+#   OUTPUTS_DIR     — path to training outputs directory
+#   HF_CACHE_DIR    — path to HuggingFace cache directory
+#
+# Apply: kubectl apply -f robot-brain.yaml
+# ============================================================
+
+---
+# --- Combined MCP + Inference Pod (GPU node) ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: robot-brain
+  namespace: robot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: robot-brain
+  template:
+    metadata:
+      labels:
+        app: robot-brain
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+
+      nodeSelector:
+        # Set this to your GPU node's hostname
+        kubernetes.io/hostname: ${GPU_NODE_NAME}
+
+      containers:
+      # --- MCP Server ---
+      - name: mcp-server
+        image: ${REGISTRY}/so101-mcp-server:v14
+        imagePullPolicy: Always
+
+        env:
+        - name: ROS_DOMAIN_ID
+          value: "0"
+        - name: ES_URL
+          value: "https://elasticsearch-es-http.default.svc:9200"
+        - name: ES_USER
+          value: "elastic"
+        - name: ES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: elasticsearch-es-elastic-user
+              key: elastic
+        - name: OLLAMA_URL
+          value: "http://localhost:11434"
+        - name: EVALUATOR_MODEL
+          value: "qwen3-vl:8b"
+        - name: JINA_CLIP_URL
+          value: "http://localhost:8900"
+        - name: ELASTIC_APM_SERVICE_NAME
+          value: "so101-mcp-server"
+        - name: ELASTIC_APM_SERVER_URL
+          value: "http://localhost:8200"
+        - name: ELASTIC_APM_SECRET_TOKEN
+          value: ""
+        - name: ELASTIC_APM_VERIFY_SERVER_CERT
+          value: "false"
+        - name: ELASTIC_APM_ENVIRONMENT
+          value: "production"
+
+        volumeMounts:
+        - name: mcp-server-src
+          mountPath: /ros2_ws/mcp_server.py
+          subPath: mcp_server.py
+          readOnly: true
+
+        ports:
+        - containerPort: 8888
+          hostPort: 8888
+          protocol: TCP
+
+      # --- VLA Inference Node ---
+      - name: inference
+        image: ${REGISTRY}/so101-inference:v8
+        imagePullPolicy: Always
+
+        securityContext:
+          privileged: true
+
+        env:
+        - name: ROS_DOMAIN_ID
+          value: "0"
+        - name: MODEL_PATH
+          value: "/models/pretrained_model"
+        - name: DEVICE
+          value: "cuda"
+        - name: NVIDIA_VISIBLE_DEVICES
+          value: "all"
+        - name: NVIDIA_DRIVER_CAPABILITIES
+          value: "compute,utility"
+        - name: LD_LIBRARY_PATH
+          value: "/usr/local/nvidia/lib64:/host-nvidia-libs"
+        - name: CUDA_INJECTION64_PATH
+          value: "/var/lib/refinery/shim/libgpucollector.so"
+        - name: GPUCOLLECTOR_ACTIVITY_BUFFER_SIZE
+          value: "65536"
+        - name: TRAJECTORY_CORRECTION
+          value: "0"
+
+        volumeMounts:
+        - name: inference-src
+          mountPath: /ros2_ws/inference_node.py
+          subPath: inference_node.py
+          readOnly: true
+        - name: refinery-shim
+          mountPath: /var/lib/refinery/shim
+          readOnly: true
+        - name: model-checkpoint
+          mountPath: /models/pretrained_model
+          readOnly: true
+        - name: nvidia-libs
+          mountPath: /host-nvidia-libs
+          readOnly: true
+        - name: nvidia-bins
+          mountPath: /usr/local/nvidia/bin
+          readOnly: true
+        # Mount all checkpoints so swap_model can access them
+        - name: all-checkpoints
+          mountPath: /checkpoints
+          readOnly: true
+        # Mount outputs dir so symlinks in /checkpoints resolve
+        - name: outputs
+          mountPath: ${OUTPUTS_DIR}
+          readOnly: true
+        - name: repo-outputs
+          mountPath: ${REPO_ROOT}/outputs
+          readOnly: true
+
+      volumes:
+      - name: inference-src
+        hostPath:
+          path: ${REPO_ROOT}/src/cortex/brain
+          type: Directory
+      - name: model-checkpoint
+        hostPath:
+          # Point this to your default model checkpoint
+          path: ${REPO_ROOT}/models/xvla_v1
+          type: Directory
+      - name: all-checkpoints
+        hostPath:
+          path: ${REPO_ROOT}/models
+          type: Directory
+      - name: outputs
+        hostPath:
+          path: ${OUTPUTS_DIR}
+          type: Directory
+      - name: repo-outputs
+        hostPath:
+          path: ${REPO_ROOT}/outputs
+          type: DirectoryOrCreate
+      - name: nvidia-libs
+        hostPath:
+          path: /usr/lib/x86_64-linux-gnu
+          type: Directory
+      - name: nvidia-bins
+        hostPath:
+          path: /usr/bin
+          type: Directory
+      - name: mcp-server-src
+        hostPath:
+          path: ${REPO_ROOT}/src/cortex/brain
+          type: Directory
+      - name: refinery-shim
+        hostPath:
+          path: /var/lib/refinery/shim
+          type: Directory
+
+---
+# --- Motor Node (edge node) ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: motor-node
+  namespace: robot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: motor-node
+  template:
+    metadata:
+      labels:
+        app: motor-node
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+
+      nodeSelector:
+        # Set this to your edge/motor node's hostname
+        kubernetes.io/hostname: ${MOTOR_NODE_NAME}
+
+      containers:
+      - name: motor
+        image: ${REGISTRY}/so101-motor:v5
+        imagePullPolicy: Always
+
+        securityContext:
+          privileged: true
+
+        env:
+        - name: ROS_DOMAIN_ID
+          value: "0"
+        # udev symlinks (/dev/so101-follower) don't propagate into k3s containers;
+        # use raw ttyACM path — check with: udevadm info -q symlink /dev/ttyACM1
+        - name: FOLLOWER_PORT
+          value: "/dev/ttyACM1"
+        - name: MAX_RELATIVE_TARGET
+          value: "none"
+
+        volumeMounts:
+        - name: lerobot-cache
+          mountPath: /root/.cache/huggingface/lerobot
+
+      volumes:
+      - name: lerobot-cache
+        hostPath:
+          path: ${HF_CACHE_DIR}/lerobot
+          type: Directory
+
+---
+# --- Camera Node: Wrist (GPU node) ---
+# Publishes cam0 (wrist) from GPU node. Device path via CAM0_DEVICE env var.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: camera-wrist
+  namespace: robot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: camera-wrist
+  template:
+    metadata:
+      labels:
+        app: camera-wrist
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+
+      nodeSelector:
+        kubernetes.io/hostname: ${GPU_NODE_NAME}
+
+      containers:
+      - name: camera
+        image: ${REGISTRY}/so101-camera:v1
+        imagePullPolicy: Always
+
+        securityContext:
+          privileged: true
+
+        env:
+        - name: ROS_DOMAIN_ID
+          value: "0"
+        - name: CAM0_DEVICE
+          value: "usb5"
+        - name: RMW_IMPLEMENTATION
+          value: "rmw_fastrtps_cpp"
+        - name: FASTRTPS_DEFAULT_PROFILES_FILE
+          value: "/ros2_ws/fastdds_no_shm.xml"
+
+        args: ["python3", "-u", "/ros2_ws/edge_camera_node.py", "--camera", "cam0"]
+
+---
+# --- Camera Node: Overhead (GPU node) ---
+# Publishes cam1 (overhead) from GPU node. Device path via CAM1_DEVICE env var.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: camera-overhead
+  namespace: robot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: camera-overhead
+  template:
+    metadata:
+      labels:
+        app: camera-overhead
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+
+      nodeSelector:
+        kubernetes.io/hostname: ${GPU_NODE_NAME}
+
+      containers:
+      - name: camera
+        image: ${REGISTRY}/so101-camera:v1
+        imagePullPolicy: Always
+
+        securityContext:
+          privileged: true
+
+        env:
+        - name: ROS_DOMAIN_ID
+          value: "0"
+        - name: CAM1_DEVICE
+          value: "usb1"
+        - name: RMW_IMPLEMENTATION
+          value: "rmw_fastrtps_cpp"
+        - name: FASTRTPS_DEFAULT_PROFILES_FILE
+          value: "/ros2_ws/fastdds_no_shm.xml"
+
+        args: ["python3", "-u", "/ros2_ws/edge_camera_node.py", "--camera", "cam1"]
+
+---
+# --- Camera Node: Third Camera (GPU node) ---
+# Publishes cam2 from GPU node. Must be on a third USB controller.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: camera-third
+  namespace: robot
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: camera-third
+  template:
+    metadata:
+      labels:
+        app: camera-third
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+
+      nodeSelector:
+        kubernetes.io/hostname: ${GPU_NODE_NAME}
+
+      containers:
+      - name: camera
+        image: ${REGISTRY}/so101-camera:v1
+        imagePullPolicy: Always
+
+        securityContext:
+          privileged: true
+
+        env:
+        - name: ROS_DOMAIN_ID
+          value: "0"
+        - name: CAM2_DEVICE
+          value: "usb3"
+        - name: RMW_IMPLEMENTATION
+          value: "rmw_fastrtps_cpp"
+        - name: FASTRTPS_DEFAULT_PROFILES_FILE
+          value: "/ros2_ws/fastdds_no_shm.xml"
+
+        args: ["python3", "-u", "/ros2_ws/edge_camera_node.py", "--camera", "cam2"]

@@ -1,0 +1,146 @@
+{
+  "index_patterns": [
+    "robot-inference*"
+  ],
+  "template": {
+    "settings": {
+      "index": {
+        "number_of_shards": "1",
+        "number_of_replicas": "0"
+      }
+    },
+    "mappings": {
+      "properties": {
+        "checkpoint": {
+          "type": "keyword"
+        },
+        "scene_embedding": {
+          "dims": 1024,
+          "similarity": "cosine",
+          "index": true,
+          "type": "dense_vector"
+        },
+        "nearest_training_distance": {
+          "type": "float"
+        },
+        "model_version": {
+          "type": "keyword"
+        },
+        "cycle_id": {
+          "type": "keyword"
+        },
+        "run_id": {
+          "type": "keyword"
+        },
+        "prompt_text": {
+          "type": "text"
+        },
+        "action_summary": {
+          "properties": {
+            "joint_deltas_max": {
+              "type": "float"
+            },
+            "total_steps": {
+              "type": "integer"
+            },
+            "joint_deltas_mean": {
+              "type": "float"
+            }
+          }
+        },
+        "episode_num": {
+          "type": "integer"
+        },
+        "model_id": {
+          "type": "keyword"
+        },
+        "prompt_version": {
+          "type": "keyword"
+        },
+        "evaluation": {
+          "properties": {
+            "evaluator_model": {
+              "type": "keyword"
+            },
+            "scene_description": {
+              "type": "text"
+            },
+            "score": {
+              "type": "float"
+            },
+            "confidence": {
+              "type": "float"
+            },
+            "reasoning": {
+              "type": "text"
+            }
+          }
+        },
+        "policy_type": {
+          "type": "keyword"
+        },
+        "condition": {
+          "properties": {
+            "camera_occluded": {
+              "type": "boolean"
+            },
+            "object_placement": {
+              "type": "keyword"
+            },
+            "distractor_objects": {
+              "type": "keyword"
+            },
+            "distractor_present": {
+              "type": "boolean"
+            },
+            "occlusion_type": {
+              "type": "keyword"
+            },
+            "lighting": {
+              "type": "keyword"
+            },
+            "tags": {
+              "type": "keyword"
+            }
+          }
+        },
+        "task": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            }
+          }
+        },
+        "step_in_episode": {
+          "type": "integer"
+        },
+        "outcome": {
+          "properties": {
+            "success": {
+              "type": "boolean"
+            },
+            "object_placed": {
+              "type": "boolean"
+            },
+            "object_grasped": {
+              "type": "boolean"
+            },
+            "failure_mode": {
+              "type": "keyword"
+            },
+            "gripper_closed": {
+              "type": "boolean"
+            },
+            "cycle_time_s": {
+              "type": "float"
+            }
+          }
+        },
+        "timestamp": {
+          "type": "date"
+        }
+      }
+    }
+  }
+}
