@@ -63,7 +63,7 @@ docs/
 └── gotchas.md           # 35+ categorized operational gotchas
 
 src/
-├── cortex/brain/        # MCP server (26 tools) + inference node
+├── server/brain/        # MCP server (26 tools) + inference node
 ├── edge/camera/         # Camera node with USB auto-recovery
 └── edge/motor/          # Motor control bridge
 

@@ -148,7 +148,7 @@ spec:
       volumes:
       - name: inference-src
         hostPath:
-          path: ${REPO_ROOT}/src/cortex/brain
+          path: ${REPO_ROOT}/src/server/brain
           type: Directory
       - name: model-checkpoint
         hostPath:
@@ -177,7 +177,7 @@ spec:
           type: Directory
       - name: mcp-server-src
         hostPath:
-          path: ${REPO_ROOT}/src/cortex/brain
+          path: ${REPO_ROOT}/src/server/brain
           type: Directory
       - name: refinery-shim
         hostPath:

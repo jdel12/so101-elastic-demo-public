@@ -40,7 +40,7 @@ CUDA and the full LeRobot dependency tree. Expect the first build to take
 
 The MCP server and inference node source files are host-mounted into the
 running containers via volume mounts in the k8s manifests. This means you can
-edit `src/cortex/brain/mcp_server.py` or `src/cortex/brain/inference_node.py`
+edit `src/server/brain/mcp_server.py` or `src/server/brain/inference_node.py`
 on the GPU server and restart the pod to pick up changes -- no image rebuild
 required. Only rebuild the image when dependencies change.
 
