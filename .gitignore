@@ -1,5 +1,5 @@
 # Credentials
-scripts/rebuild/config.env
+deploy/scripts/rebuild/config.env
 *.env
 !config.env.example
 

@@ -1,0 +1,105 @@
+name: Model Comparison
+description: >
+  Compares two model versions side-by-side on success rate, confidence,
+  and per-condition performance. Triggered manually or by Agent Builder.
+enabled: true
+tags: ["flywheel", "comparison"]
+
+inputs:
+  model_a:
+    description: "First model version to compare (e.g., v1)"
+    type: string
+    required: true
+  model_b:
+    description: "Second model version to compare (e.g., v2)"
+    type: string
+    required: true
+
+consts:
+  inferenceIndex: robot-inference
+
+triggers:
+  - type: manual
+
+steps:
+  - name: stats_model_a
+    type: elasticsearch.search
+    with:
+      index: "{{ consts.inferenceIndex }}"
+      size: 0
+      query:
+        term:
+          model_version: "{{ inputs.model_a }}"
+      aggs:
+        total:
+          value_count:
+            field: cycle_id
+        successes:
+          filter:
+            term:
+              outcome.success: true
+        avg_confidence:
+          avg:
+            field: evaluation.confidence
+        by_lighting:
+          terms:
+            field: condition.lighting
+            size: 10
+          aggs:
+            successes:
+              filter:
+                term:
+                  outcome.success: true
+            total:
+              value_count:
+                field: cycle_id
+
+  - name: stats_model_b
+    type: elasticsearch.search
+    with:
+      index: "{{ consts.inferenceIndex }}"
+      size: 0
+      query:
+        term:
+          model_version: "{{ inputs.model_b }}"
+      aggs:
+        total:
+          value_count:
+            field: cycle_id
+        successes:
+          filter:
+            term:
+              outcome.success: true
+        avg_confidence:
+          avg:
+            field: evaluation.confidence
+        by_lighting:
+          terms:
+            field: condition.lighting
+            size: 10
+          aggs:
+            successes:
+              filter:
+                term:
+                  outcome.success: true
+            total:
+              value_count:
+                field: cycle_id
+
+  - name: log_comparison
+    type: console
+    with:
+      message: |
+        === Model Comparison: {{ inputs.model_a }} vs {{ inputs.model_b }} ===
+
+        {{ inputs.model_a }}:
+          Total cycles: {{ steps.stats_model_a.output.aggregations.total.value }}
+          Successes: {{ steps.stats_model_a.output.aggregations.successes.doc_count }}
+          Avg confidence: {{ steps.stats_model_a.output.aggregations.avg_confidence.value }}
+          By lighting: {{ steps.stats_model_a.output.aggregations.by_lighting.buckets | json }}
+
+        {{ inputs.model_b }}:
+          Total cycles: {{ steps.stats_model_b.output.aggregations.total.value }}
+          Successes: {{ steps.stats_model_b.output.aggregations.successes.doc_count }}
+          Avg confidence: {{ steps.stats_model_b.output.aggregations.avg_confidence.value }}
+          By lighting: {{ steps.stats_model_b.output.aggregations.by_lighting.buckets | json }}

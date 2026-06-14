@@ -1,0 +1,104 @@
+name: Flywheel Stats
+description: >
+  Computes flywheel statistics: success rate by model and condition,
+  training buffer size, and recent curation rate. Writes a summary doc
+  to robot-models for the Model Registry dashboard.
+enabled: true
+tags: ["flywheel", "stats"]
+
+consts:
+  inferenceIndex: robot-inference
+  bufferIndex: robot-training-buffer
+  modelsIndex: robot-models
+
+triggers:
+  - type: scheduled
+    with:
+      every: 30m
+
+steps:
+  - name: model_stats
+    type: elasticsearch.search
+    with:
+      index: "{{ consts.inferenceIndex }}"
+      size: 0
+      query:
+        match_all: {}
+      aggs:
+        by_model:
+          terms:
+            field: model_version
+            size: 10
+          aggs:
+            success_count:
+              filter:
+                term:
+                  outcome.success: true
+            avg_confidence:
+              avg:
+                field: evaluation.confidence
+            total:
+              value_count:
+                field: cycle_id
+
+  - name: condition_stats
+    type: elasticsearch.search
+    with:
+      index: "{{ consts.inferenceIndex }}"
+      size: 0
+      query:
+        match_all: {}
+      aggs:
+        by_lighting:
+          terms:
+            field: condition.lighting
+            size: 10
+          aggs:
+            success_count:
+              filter:
+                term:
+                  outcome.success: true
+            total:
+              value_count:
+                field: cycle_id
+
+  - name: buffer_count
+    type: elasticsearch.request
+    with:
+      method: POST
+      path: "/{{ consts.bufferIndex }}/_count?ignore_unavailable=true"
+      body:
+        query:
+          match_all: {}
+
+  - name: recent_buffer
+    type: elasticsearch.request
+    with:
+      method: POST
+      path: "/{{ consts.bufferIndex }}/_count?ignore_unavailable=true"
+      body:
+        query:
+          range:
+            admitted_at:
+              gte: "now-1h"
+
+  - name: write_summary
+    type: elasticsearch.request
+    with:
+      method: POST
+      path: "/{{ consts.modelsIndex }}/_doc"
+      body:
+        model_id: "flywheel_stats"
+        base_model: "summary"
+        created_at: "{{ execution.startedAt }}"
+        training_data: "buffer_size:{{ steps.buffer_count.output.count }}"
+        training_steps: "{{ steps.recent_buffer.output.count }}"
+        is_active: true
+        notes: "Buffer: {{ steps.buffer_count.output.count }} total, {{ steps.recent_buffer.output.count }} added last hour. Models: {{ steps.model_stats.output.aggregations.by_model.buckets | json }}. Conditions: {{ steps.condition_stats.output.aggregations.by_lighting.buckets | json }}"
+
+  - name: log_summary
+    type: console
+    with:
+      message: >
+        Flywheel stats updated. Buffer: {{ steps.buffer_count.output.count }} total,
+        {{ steps.recent_buffer.output.count }} added last hour.

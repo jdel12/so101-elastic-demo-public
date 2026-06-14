@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ros2-collector
+  labels:
+    app: ros2-collector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ros2-collector
+  template:
+    metadata:
+      labels:
+        app: ros2-collector
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      nodeSelector:
+        kubernetes.io/hostname: ${GPU_NODE_NAME}
+      containers:
+      - name: collector
+        image: ${REGISTRY}/ros2-collector:v2
+        env:
+        - name: ES_URL
+          value: "https://${GPU_SERVER}:31920"
+        - name: ES_USER
+          value: "elastic"
+        - name: ES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: elasticsearch-es-elastic-user
+              key: elastic
+        args:
+        - "--ros-args"
+        - "-p"
+        - "robot_id:=so101-001"
+        - "-p"
+        - "fleet:=demo-fleet"
+        - "-p"
+        - "topic_targets:=[/joint_commands:30,/joint_states:30,/camera/cam0/compressed:15,/camera/cam1/compressed:15]"
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi

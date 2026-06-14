@@ -1,0 +1,138 @@
+---
+# DCGM Exporter — exposes NVIDIA GPU metrics on :9400/metrics
+# Consumed by Elastic Agent via the nvidia_gpu Fleet integration (Prometheus scrape).
+#
+# Image: nvcr.io/nvidia/k8s/dcgm-exporter:3.3.9-3.6.1-ubuntu22.04
+#   - DCGM 3.3.9 is the version tested by the Elastic nvidia_gpu integration
+#   - Compatible with driver 550.x / CUDA 12.4
+#   - Uses the nvidia RuntimeClass (k3s containerd config)
+#
+# Consumer GPU gotchas (RTX 4060 Ti):
+#   1. DCGM profiling fields (DCGM_FI_PROF_*) are NOT supported on GeForce cards.
+#      The default-counters.csv includes PROF_PCIE_TX/RX_BYTES which cause a silent
+#      crash after "DCGM successfully initialized!". Custom counters ConfigMap below
+#      excludes all PROF_ fields.
+#   2. DCGM embedded mode uses ~300-400MB RSS with 2 GPUs. The default 256Mi limit
+#      causes OOMKilled. Set to 512Mi minimum.
+#
+# Scheduling: runs only on cortex (GPU node) via nodeSelector.
+
+# --- Custom counters for GeForce GPUs (no DCP/profiling fields) ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dcgm-exporter-counters
+  namespace: default
+data:
+  counters.csv: |
+    # Custom counters for GeForce RTX 4060 Ti (consumer GPU)
+    # Excludes DCGM_FI_PROF_* (DCP) fields — not supported on GeForce cards
+    # DCGM FIELD, Prometheus metric type, help message
+    DCGM_FI_DEV_SM_CLOCK,  gauge, SM clock frequency (in MHz).
+    DCGM_FI_DEV_MEM_CLOCK, gauge, Memory clock frequency (in MHz).
+    DCGM_FI_DEV_MEMORY_TEMP, gauge, Memory temperature (in C).
+    DCGM_FI_DEV_GPU_TEMP,    gauge, GPU temperature (in C).
+    DCGM_FI_DEV_POWER_USAGE,              gauge, Power draw (in W).
+    DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION, counter, Total energy consumption since boot (in mJ).
+    DCGM_FI_DEV_PCIE_REPLAY_COUNTER, counter, Total number of PCIe retries.
+    DCGM_FI_DEV_GPU_UTIL,      gauge, GPU utilization (in %).
+    DCGM_FI_DEV_MEM_COPY_UTIL, gauge, Memory utilization (in %).
+    DCGM_FI_DEV_ENC_UTIL,      gauge, Encoder utilization (in %).
+    DCGM_FI_DEV_DEC_UTIL,      gauge, Decoder utilization (in %).
+    DCGM_FI_DEV_XID_ERRORS,            gauge,   Value of the last XID error encountered.
+    DCGM_FI_DEV_FB_FREE, gauge, Framebuffer memory free (in MiB).
+    DCGM_FI_DEV_FB_USED, gauge, Framebuffer memory used (in MiB).
+    DCGM_FI_DEV_POWER_VIOLATION,       counter, Throttling duration due to power (us).
+    DCGM_FI_DEV_THERMAL_VIOLATION,     counter, Throttling duration due to thermal (us).
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: dcgm-exporter
+  namespace: default
+  labels:
+    app: dcgm-exporter
+spec:
+  selector:
+    matchLabels:
+      app: dcgm-exporter
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: dcgm-exporter
+    spec:
+      runtimeClassName: nvidia
+      nodeSelector:
+        kubernetes.io/hostname: ${GPU_NODE_NAME}
+      tolerations:
+        - operator: Exists
+      containers:
+        - name: dcgm-exporter
+          image: nvcr.io/nvidia/k8s/dcgm-exporter:3.3.9-3.6.1-ubuntu22.04
+          args:
+            - -f
+            - /custom-counters/counters.csv
+          ports:
+            - name: metrics
+              containerPort: 9400
+              hostPort: 9400
+              protocol: TCP
+          env:
+            - name: NVIDIA_VISIBLE_DEVICES
+              value: "all"
+            - name: NVIDIA_DRIVER_CAPABILITIES
+              value: "utility,compute"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: custom-counters
+              mountPath: /custom-counters
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 9400
+            initialDelaySeconds: 45
+            periodSeconds: 15
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 9400
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+      volumes:
+        - name: custom-counters
+          configMap:
+            name: dcgm-exporter-counters
+      restartPolicy: Always
+---
+# Service for in-cluster access (Elastic Agent scrapes this)
+apiVersion: v1
+kind: Service
+metadata:
+  name: dcgm-exporter
+  namespace: default
+  labels:
+    app: dcgm-exporter
+spec:
+  type: ClusterIP
+  selector:
+    app: dcgm-exporter
+  ports:
+    - name: metrics
+      port: 9400
+      targetPort: 9400
+      protocol: TCP

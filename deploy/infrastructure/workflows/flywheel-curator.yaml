@@ -1,0 +1,83 @@
+name: Flywheel Curator
+description: Curates failed low-confidence inference cycles into the training buffer. Runs hourly, deduplicates against existing buffer entries.
+enabled: true
+tags:
+  - flywheel
+  - curation
+
+consts:
+  inferenceIndex: robot-inference
+  bufferIndex: robot-training-buffer
+  confidenceThreshold: 0.5
+
+triggers:
+  - type: scheduled
+    with:
+      every: 1h
+
+steps:
+  - name: find_failures
+    type: elasticsearch.search
+    with:
+      index: "{{ consts.inferenceIndex }}"
+      size: 50
+      query:
+        bool:
+          must:
+            - term:
+                outcome.success: "false"
+          filter:
+            - range:
+                evaluation.confidence:
+                  lte: "{{ consts.confidenceThreshold }}"
+            - range:
+                timestamp:
+                  gte: "now-2h"
+
+  - name: log_found
+    type: console
+    with:
+      message: "Found {{ steps.find_failures.output.hits.total.value }} candidate failures for curation"
+
+  - name: curate_each
+    type: foreach
+    foreach: "{{ steps.find_failures.output.hits.hits | json }}"
+    steps:
+      - name: check_duplicate
+        type: elasticsearch.search
+        with:
+          index: "{{ consts.bufferIndex }}"
+          size: 1
+          query:
+            term:
+              source_cycle_id: "{{ foreach.item._source.cycle_id }}"
+
+      - name: skip_if_exists
+        type: if
+        condition: "steps.check_duplicate.output.hits.total.value == 0"
+        steps:
+          - name: write_to_buffer
+            type: elasticsearch.request
+            with:
+              method: POST
+              path: "/{{ consts.bufferIndex }}/_doc"
+              body:
+                buffer_id: "{{ foreach.item._source.cycle_id }}-curated"
+                source_cycle_id: "{{ foreach.item._source.cycle_id }}"
+                source_run_id: "{{ foreach.item._source.run_id }}"
+                task: "{{ foreach.item._source.task }}"
+                model_version: "{{ foreach.item._source.model_version }}"
+                prompt_version: "{{ foreach.item._source.prompt_version }}"
+                condition_tags: ["low_confidence_failure"]
+                admitted_at: "{{ execution.startedAt }}"
+                curation:
+                  confidence_at_action: "{{ foreach.item._source.evaluation.confidence }}"
+                  difficulty_score: "{{ foreach.item._source.evaluation.confidence }}"
+                  hard_example: true
+                  outcome_success: false
+                timestamp: "{{ foreach.item._source.timestamp }}"
+
+  - name: log_done
+    type: console
+    with:
+      message: "Curation complete"
