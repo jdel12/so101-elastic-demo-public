@@ -62,7 +62,7 @@ LAN.
 Verify Elasticsearch is reachable:
 
 ```bash
-curl -sk -u elastic:<password> https://192.168.88.254:31920
+curl -sk -u elastic:<password> https://<gpu-server-ip>:31920
 ```
 
 You should get back a JSON response with the cluster name and version.
@@ -81,7 +81,7 @@ Wait for it to become ready:
 sudo kubectl get kibana
 ```
 
-Verify in a browser: `https://192.168.88.254:31561` (accept the
+Verify in a browser: `https://<gpu-server-ip>:31561` (accept the
 self-signed certificate). Log in with `elastic` and the password from above.
 
 ### Response timeout
@@ -105,7 +105,7 @@ trial license. Start a 30-day trial:
 
 ```bash
 curl -sk -u elastic:<password> \
-  -X POST "https://192.168.88.254:31920/_license/start_trial?acknowledge=true"
+  -X POST "https://<gpu-server-ip>:31920/_license/start_trial?acknowledge=true"
 ```
 
 The trial is tied to the cluster UUID. If you delete and recreate the

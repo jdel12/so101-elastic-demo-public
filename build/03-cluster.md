@@ -51,12 +51,12 @@ Join the edge node as an agent (worker):
 
 ```bash
 curl -sfL https://get.k3s.io | \
-  K3S_URL=https://192.168.88.254:6443 \
+  K3S_URL=https://<gpu-server-ip>:6443 \
   K3S_TOKEN=<token-from-above> \
   sh -
 ```
 
-Replace `192.168.88.254` with your GPU server's IP and paste the token from
+Replace `<gpu-server-ip>` with your GPU server's IP and paste the token from
 the previous step.
 
 Back on the GPU server, verify both nodes are ready:
@@ -109,12 +109,12 @@ on **both** the GPU server and the edge node:
 
 ```yaml
 mirrors:
-  "192.168.88.254:5050":
+  "<gpu-server-ip>:5050":
     endpoint:
-      - "http://192.168.88.254:5050"
+      - "http://<gpu-server-ip>:5050"
 ```
 
-Replace `192.168.88.254` with your GPU server's IP.
+Replace `<gpu-server-ip>` with your GPU server's IP.
 
 Restart k3s on both nodes after adding this file:
 
@@ -129,7 +129,7 @@ sudo systemctl restart k3s-agent
 Verify the registry is reachable:
 
 ```bash
-curl http://192.168.88.254:5050/v2/_catalog
+curl http://<gpu-server-ip>:5050/v2/_catalog
 ```
 
 Should return `{"repositories":[]}` (empty for now).

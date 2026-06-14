@@ -131,7 +131,7 @@ Refinery installs via Helm:
 ```bash
 helm repo add refinery https://refinery.dev/charts
 helm install refinery refinery/refinery \
-  --set elasticsearch.url=https://192.168.88.254:31920 \
+  --set elasticsearch.url=https://<gpu-server-ip>:31920 \
   --set elasticsearch.username=elastic \
   --set elasticsearch.password=<password>
 ```

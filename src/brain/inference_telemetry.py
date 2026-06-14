@@ -43,7 +43,7 @@ IDX_TRAINING_EMBEDDINGS = 'robot-episode-embeddings'
 
 FRAME_STORE_DIR = os.environ.get(
     'FRAME_STORE_DIR',
-    '/home/joe/github/so101-elastic-demo/data/inference-frames',
+    os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'inference-frames'),
 )
 
 FLUSH_SIZE = 100

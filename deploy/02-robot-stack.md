@@ -13,23 +13,23 @@ There are four container images to build. All Dockerfiles are in
 # On the GPU server, from the repository root
 
 # MCP server (FastMCP + ROS 2 Jazzy + APM agent)
-sudo docker build -f deploy/robot/docker/Dockerfile.mcp -t 192.168.88.254:5050/so101-mcp-server:v1 .
-sudo docker push 192.168.88.254:5050/so101-mcp-server:v1
+sudo docker build -f deploy/robot/docker/Dockerfile.mcp -t <gpu-server-ip>:5050/so101-mcp-server:v1 .
+sudo docker push <gpu-server-ip>:5050/so101-mcp-server:v1
 
 # VLA inference (PyTorch + CUDA + LeRobot + ROS 2 Jazzy)
-sudo docker build -f deploy/robot/docker/Dockerfile.inference -t 192.168.88.254:5050/so101-inference:v1 .
-sudo docker push 192.168.88.254:5050/so101-inference:v1
+sudo docker build -f deploy/robot/docker/Dockerfile.inference -t <gpu-server-ip>:5050/so101-inference:v1 .
+sudo docker push <gpu-server-ip>:5050/so101-inference:v1
 
 # Camera node (OpenCV + ROS 2 Humble + FastDDS config)
-sudo docker build -f deploy/robot/docker/Dockerfile.camera -t 192.168.88.254:5050/so101-camera:v1 .
-sudo docker push 192.168.88.254:5050/so101-camera:v1
+sudo docker build -f deploy/robot/docker/Dockerfile.camera -t <gpu-server-ip>:5050/so101-camera:v1 .
+sudo docker push <gpu-server-ip>:5050/so101-camera:v1
 
 # Motor node (LeRobot + Feetech drivers + ROS 2 Humble)
-sudo docker build -f deploy/robot/docker/Dockerfile.motor -t 192.168.88.254:5050/so101-motor:v1 .
-sudo docker push 192.168.88.254:5050/so101-motor:v1
+sudo docker build -f deploy/robot/docker/Dockerfile.motor -t <gpu-server-ip>:5050/so101-motor:v1 .
+sudo docker push <gpu-server-ip>:5050/so101-motor:v1
 ```
 
-Replace `192.168.88.254:5050` with your registry address.
+Replace `<gpu-server-ip>:5050` with your registry address.
 
 The inference image is the largest (~12GB) because it includes PyTorch with
 CUDA and the full LeRobot dependency tree. The first build takes 15-20
